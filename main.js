@@ -796,6 +796,19 @@ async function boot() {
       // Portrait gate: no interactive elements; just absorb the touch
       if (isPortrait()) return;
 
+      // ── Global Touch (theme button, etc) ──
+      for (const hit of globalHitAreas) {
+        if (tx >= hit.x && tx <= hit.x + hit.w && ty >= hit.y && ty <= hit.y + hit.h) {
+          if (subHoverState[hit.id] === undefined) subHoverState[hit.id] = 0;
+          gsap.to(subHoverState, { [hit.id]: 1, duration: 0.07, overwrite: 'auto' });
+          setTimeout(() => {
+            gsap.to(subHoverState, { [hit.id]: 0, duration: 0.35, overwrite: 'auto' });
+            handleGlobalClick(hit.id);
+          }, 85);
+          return;
+        }
+      }
+
       // ── Active page sub-links ──
       if (activePage) {
         if (activePage === 'doom') {
@@ -861,6 +874,20 @@ async function boot() {
   }
 
   // Sub-link dispatcher
+  function handleGlobalClick(id) {
+    if (id === 'theme-toggle') {
+      themeIdx = (themeIdx + 1) % THEMES.length;
+      THEME = THEMES[themeIdx]; // Triggers proxy
+      localStorage.setItem('crt-theme', themeIdx.toString());
+      
+      // Wipe persistence caches completely so color doesn't smear
+      _gradCache.W = -1; 
+      asciiCache.w = -1;
+      pctx.clearRect(0, 0, canvas.width, canvas.height);
+      off.getContext('2d').clearRect(0, 0, off.width, off.height);
+    }
+  }
+
   function handleSubClick(id) {
     if (id === 'back') { closePage(); return; }
     if (id === 'instagram') { window.open('https://instagram.com/alkexh', '_blank'); return; }
@@ -1053,7 +1080,7 @@ function drawSidebar(ctx, x, y, w, h, fs) {
   const PAD = w * 0.1;
 
   const listStartY = y + boxH + topPad;
-  const listH = h - (listStartY - y);
+  const listH = h - (listStartY - y) - (lineH * 2.0); // reserve space at bottom
 
   ctx.save();
   ctx.beginPath();
@@ -1138,6 +1165,30 @@ function drawSidebar(ctx, x, y, w, h, fs) {
 
   // Atomic update of hit areas
   menuHitAreas = newHits;
+
+  // ── Theme Toggle Button (Global) ──
+  // Pinned below the sidebar list
+  const themeY = listStartY + listH + lineH * 0.5;
+  const hsTheme = subHoverState['theme-toggle'] || 0;
+  
+  // Base background
+  ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${0.05 + hsTheme * 0.1})`;
+  ctx.fillRect(x, themeY, w * 0.9, lineH * 1.1);
+  
+  // Hover inversion
+  if (hsTheme > 0) {
+    ctx.fillStyle = AMBER;
+    ctx.fillRect(x, themeY, w * 0.9, lineH * 1.1);
+  }
+
+  pgGlow(ctx, hsTheme > 0 ? 0 : 10);
+  ctx.fillStyle = hsTheme > 0 ? '#000' : AMBER;
+  ctx.fillText('[◈] PHOS : ' + windowTheme.name, x + 8, themeY);
+  pgGlowOff(ctx);
+
+  globalHitAreas = [
+    { x, y: themeY, w: w * 0.9, h: lineH * 1.1, id: 'theme-toggle' }
+  ];
 }
 
 // \u2500\u2500 Main panel renderer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
