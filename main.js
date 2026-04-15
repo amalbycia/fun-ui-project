@@ -92,6 +92,7 @@ const THEMES = [
 let themeIdx = parseInt(localStorage.getItem('crt-theme') || '0', 10);
 if (isNaN(themeIdx) || themeIdx >= THEMES.length) themeIdx = 0;
 let windowTheme = THEMES[themeIdx];
+let themeMenuOpen = false;
 
 // Using globalThis so variables resolve implicitly in non-strict, but in a module, we just create proxies.
 const THEME = new Proxy({}, {
@@ -876,15 +877,21 @@ async function boot() {
   // Sub-link dispatcher
   function handleGlobalClick(id) {
     if (id === 'theme-toggle') {
-      themeIdx = (themeIdx + 1) % THEMES.length;
-      THEME = THEMES[themeIdx]; // Triggers proxy
-      localStorage.setItem('crt-theme', themeIdx.toString());
-      
-      // Wipe persistence caches completely so color doesn't smear
-      _gradCache.W = -1; 
-      asciiCache.w = -1;
-      pctx.clearRect(0, 0, canvas.width, canvas.height);
-      off.getContext('2d').clearRect(0, 0, off.width, off.height);
+      themeMenuOpen = !themeMenuOpen;
+    } else if (id.startsWith('theme-select-')) {
+      const idx = parseInt(id.split('-')[2], 10);
+      if (!isNaN(idx) && idx >= 0 && idx < THEMES.length) {
+        themeIdx = idx;
+        THEME = THEMES[themeIdx]; // Triggers proxy
+        localStorage.setItem('crt-theme', themeIdx.toString());
+        
+        // Wipe persistence caches completely so color doesn't smear
+        _gradCache.W = -1; 
+        asciiCache.w = -1;
+        pctx.clearRect(0, 0, canvas.width, canvas.height);
+        off.getContext('2d').clearRect(0, 0, off.width, off.height);
+      }
+      themeMenuOpen = false;
     }
   }
 
@@ -982,6 +989,7 @@ function drawOrientationGate(ctx, W, H, t) {
 // ─── 2D Terminal Painter ─────────────────────────────────────────────────────
 
 function drawTerminal(ctx, W, H) {
+  globalHitAreas = []; // Reset each frame
   // Clear
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, W, H);
@@ -1165,30 +1173,6 @@ function drawSidebar(ctx, x, y, w, h, fs) {
 
   // Atomic update of hit areas
   menuHitAreas = newHits;
-
-  // ── Theme Toggle Button (Global) ──
-  // Pinned below the sidebar list
-  const themeY = listStartY + listH + lineH * 0.5;
-  const hsTheme = subHoverState['theme-toggle'] || 0;
-  
-  // Base background
-  ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${0.05 + hsTheme * 0.1})`;
-  ctx.fillRect(x, themeY, w * 0.9, lineH * 1.1);
-  
-  // Hover inversion
-  if (hsTheme > 0) {
-    ctx.fillStyle = AMBER;
-    ctx.fillRect(x, themeY, w * 0.9, lineH * 1.1);
-  }
-
-  pgGlow(ctx, hsTheme > 0 ? 0 : 10);
-  ctx.fillStyle = hsTheme > 0 ? '#000' : AMBER;
-  ctx.fillText('[◈] PHOS : ' + windowTheme.name, x + 8, themeY);
-  pgGlowOff(ctx);
-
-  globalHitAreas = [
-    { x, y: themeY, w: w * 0.9, h: lineH * 1.1, id: 'theme-toggle' }
-  ];
 }
 
 // \u2500\u2500 Main panel renderer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -1307,18 +1291,76 @@ function drawFooter(ctx, x, y, w, h, fs) {
 
   const mid = y + h * 0.3;
 
-  // Progress bar
-  const barW = w * 0.22;
-  const barH = h * 0.35;
-  ctx.strokeStyle = AMBER;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x, mid - barH / 2, barW, barH);
-  ctx.fillStyle = AMBER;
-  ctx.fillRect(x + 2, mid - barH / 2 + 2, (barW - 4) * 1.0, barH - 4);
+  // ── Theme Dropdown Button ──
+  const tfs = fs * 0.85; // A tad bit tiny
+  ctx.font = `${tfs}px VT323`;
+  
+  const thLabel = `[◈] PHOS : ${windowTheme.name}`;
+  const thW = ctx.measureText(thLabel).width + 24; // wider button
+  const thH = tfs * 1.4;
+  const thX = x;
+  const thY = mid - thH / 2;
+  
+  const hsTheme = subHoverState['theme-toggle'] || 0;
+  
+  // Base background
+  ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${0.05 + hsTheme * 0.1})`;
+  ctx.fillRect(thX, thY, thW, thH);
+  
+  // Hover inversion
+  if (hsTheme > 0 || themeMenuOpen) {
+    ctx.fillStyle = AMBER;
+    ctx.fillRect(thX, thY, thW, thH);
+  }
 
-  // "100%"
-  ctx.fillStyle = AMBER;
-  ctx.fillText('100%', x + barW + 14, mid);
+  glowText(ctx, hsTheme > 0 || themeMenuOpen ? 0 : 10);
+  ctx.fillStyle = (hsTheme > 0 || themeMenuOpen) ? '#000' : AMBER;
+  ctx.fillText(thLabel, thX + 8, mid);
+  ctx.shadowBlur = 0; // equivalent to pgGlowOff
+
+  globalHitAreas.push({ x: thX, y: thY, w: thW, h: thH, id: 'theme-toggle' });
+
+  // If menu is open, draw the dropdown list ABOVE the button
+  if (themeMenuOpen) {
+    const listH = THEMES.length * (thH * 1.1);
+    const listY = thY - listH - 8;
+    
+    // Background and border for the popup
+    ctx.fillStyle = '#050400'; // BEZEL background
+    ctx.fillRect(thX, listY, thW, listH);
+    ctx.strokeStyle = AMBER_DIM;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(thX, listY, thW, listH);
+
+    ctx.textBaseline = 'middle';
+    THEMES.forEach((t, i) => {
+      const itemH = thH * 1.1;
+      const itemY = listY + i * itemH;
+      const itemId = `theme-select-${i}`;
+      const itemHs = subHoverState[itemId] || 0;
+
+      const isCurrent = (t.name === windowTheme.name);
+
+      // Inner highlight
+      if (itemHs > 0) {
+        ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${0.15 + itemHs * 0.85})`;
+        ctx.fillRect(thX, itemY, thW, itemH);
+      }
+      
+      ctx.fillStyle = (itemHs > 0 || isCurrent) ? '#000' : AMBER;
+      if (isCurrent && itemHs === 0) {
+        ctx.fillStyle = AMBER;
+        ctx.fillRect(thX, itemY, thW, itemH);
+        ctx.fillStyle = '#000';
+      }
+
+      ctx.fillText(t.name, thX + 12, itemY + itemH / 2);
+
+      globalHitAreas.push({ x: thX, y: itemY, w: thW, h: itemH, id: itemId });
+    });
+  }
+  ctx.font = `${fs}px VT323`; // restore font
+  ctx.textBaseline = 'middle'; // reset
 
   // Battery block (right side)
   const memX = x + w * 0.45;
