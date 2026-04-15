@@ -1,0 +1,17 @@
+/* style.css — minimal, everything is drawn on canvas */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #000;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  overscroll-behavior: none; /* kill pull-to-refresh / iOS bounce */
+}
+#c {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0; left: 0;
+  touch-action: none; /* must be set or browser steals touch before canvas listeners */
+}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Retro Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #000; overflow: hidden; }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        position: fixed;
+        top: 0; left: 0;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-C0W1EfYA.js"></script>
+  </head>
+  <body>
+    <!-- Single canvas — WebGL renders directly here -->
+    <canvas id="c"></canvas>
+    <!-- Hidden keyboard target for Doom input — zero size, invisible, never renders -->
+    <div id="doom-kb" tabindex="0" style="position:fixed;width:1px;height:1px;top:0;left:0;opacity:0;pointer-events:none;outline:none;"></div>
+    <!-- Hidden video — drawn each frame onto the 2D canvas as the main panel background -->
+    <video id="bg-video" src="/main-bg.webm" loop muted playsinline preload="auto"
+           style="position:fixed;width:1px;height:1px;top:-2px;left:-2px;opacity:0;pointer-events:none;"></video>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  </body>
+</html>
