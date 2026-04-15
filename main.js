@@ -94,6 +94,11 @@ if (isNaN(themeIdx) || themeIdx >= THEMES.length) themeIdx = 0;
 let windowTheme = THEMES[themeIdx];
 let themeMenuOpen = false;
 
+// ─── Boot sequence ────────────────────────────────────────────────────────────
+let bootStartTime = null;
+let BOOT_DONE = false;
+const BOOT_DUR = 3.8; // seconds — visual boot duration
+
 // Using globalThis so variables resolve implicitly in non-strict, but in a module, we just create proxies.
 const THEME = new Proxy({}, {
   get: (t, p) => windowTheme[p],
@@ -162,7 +167,7 @@ const hoverState = {};          // index → highlight intensity 0–1 (GSAP-ani
 
 // ── Page system ───────────────────────────────────────────────────
 // Active in-screen page: replaces the ASCII art panel while sidebar/footer stay
-let activePage = null;  // null | 'letterboxd' | 'socials' | 'twitter-error' | 'library' | 'doom'
+let activePage = null;  // null | 'letterboxd' | 'socials' | 'twitter-error' | 'library' | 'arcade' | 'doom' | 'mario'
 let pageEnterTime = 0;     // performance.now() when page opened
 let pageHitAreas = []; // [{x,y,w,h,id,url}] — cleared on page open
 let globalHitAreas = []; // [{x,y,w,h,id}] — always active hit objects
@@ -187,6 +192,11 @@ let doomReady = false;  // true once WASM game loop is running
 let doomLoading = false;  // true while WASM is initialising
 let doomError = null;   // string if init failed, null otherwise
 let doomReadyTime = 0;      // performance.now() timestamp when WASM finished starting
+
+// ── Arcade / Mario state ──────────────────────────────────────────────────────
+let pagePrev = null;         // set when navigating game→arcade so ESC/back returns to hub
+let marioFrame = null;       // <iframe> DOM element — created lazily, hidden on close
+let marioControlsDiv = null; // controls HUD overlay (auto-fades after ~7s)
 
 // ── Music / Last.fm state ──────────────────────────────────────────────────
 const LASTFM_KEY = '0516e4e3bbe03d3dd814d45fc654d0f2';
@@ -369,16 +379,155 @@ function openPage(name) {
       if (kb) kb.focus({ preventScroll: true });
     });
   }
+  if (name === 'mario') {
+    // Build iframe on first open, reuse thereafter
+    if (!marioFrame) {
+      marioFrame = document.createElement('iframe');
+      marioFrame.src = '/mario/index.html';
+      marioFrame.style.cssText = [
+        'position:fixed',
+        'border:none',
+        'z-index:10',
+        'background:#000',
+        'display:block',
+      ].join(';');
+      document.body.appendChild(marioFrame);
+    } else {
+      marioFrame.style.display = 'block';
+    }
+    _positionMarioFrame();
+    // Give the iframe keyboard focus — same-origin so contentWindow.focus() works
+    requestAnimationFrame(() => {
+      if (marioFrame) marioFrame.contentWindow.focus();
+    });
+    _showMarioControls();
+  }
 }
+
+// Compute the panel region in CSS pixels and apply to the mario iframe.
+// Called on open and on resize so the iframe always tracks the canvas layout.
+function _positionMarioFrame() {
+  if (!marioFrame) return;
+  const dpr  = Math.min(window.devicePixelRatio || 1, 2);
+  const W    = window.innerWidth  * dpr;   // physical canvas pixels
+  const H    = window.innerHeight * dpr;
+  const BEZ  = W * 0.016;
+  const iw   = W - BEZ * 2;
+  const ih   = H - BEZ * 2;
+  const SW   = iw * 0.24;        // sidebar width
+  const gap  = iw * 0.012;
+  const FOOT = ih * 0.10;
+  // Convert back to CSS pixels
+  const left   = (BEZ + SW + gap) / dpr;
+  const top    = BEZ / dpr;
+  const width  = (iw - SW - gap * 1.5) / dpr;
+  const height = (ih - FOOT - ih * 0.02) / dpr;
+  marioFrame.style.left   = left   + 'px';
+  marioFrame.style.top    = top    + 'px';
+  marioFrame.style.width  = width  + 'px';
+  marioFrame.style.height = height + 'px';
+}
+
+function _showMarioControls() {
+  if (marioControlsDiv) { marioControlsDiv.remove(); marioControlsDiv = null; }
+
+  const dpr  = Math.min(window.devicePixelRatio || 1, 2);
+  const W    = window.innerWidth  * dpr;
+  const H    = window.innerHeight * dpr;
+  const BEZ  = W * 0.016;
+  const iw   = W - BEZ * 2;
+  const ih   = H - BEZ * 2;
+  const SW   = iw * 0.24;
+  const gap  = iw * 0.012;
+  const FOOT = ih * 0.10;
+  const left   = (BEZ + SW + gap) / dpr;
+  const top    = BEZ / dpr;
+  const width  = (iw - SW - gap * 1.5) / dpr;
+  const height = (ih - FOOT - ih * 0.02) / dpr;
+
+  const themeHex = windowTheme.hex;
+  const themeRGB = `${windowTheme.r},${windowTheme.g},${windowTheme.b}`;
+
+  const div = document.createElement('div');
+  div.style.cssText = [
+    `position:fixed`,
+    `left:${left}px`, `top:${top}px`,
+    `width:${width}px`, `height:${height}px`,
+    `z-index:12`,
+    `pointer-events:none`,
+    `display:flex`, `align-items:flex-start`, `justify-content:flex-start`,
+    `opacity:1`,
+    `transition:opacity 1.2s ease`,
+  ].join(';');
+
+  const panel = document.createElement('div');
+  panel.style.cssText = [
+    `margin:${height * 0.05}px 0 0 ${width * 0.04}px`,
+    `background:rgba(0,0,0,0.78)`,
+    `border-left:2px solid rgba(${themeRGB},0.7)`,
+    `padding:${height * 0.03}px ${width * 0.05}px`,
+    `font-family:VT323,monospace`,
+    `color:${themeHex}`,
+    `font-size:${Math.max(14, height * 0.038)}px`,
+    `line-height:1.55`,
+    `white-space:pre`,
+    `text-shadow:0 0 8px rgba(${themeRGB},0.8)`,
+  ].join(';');
+
+  const rows = [
+    ['CONTROLS', ''],
+    ['─'.repeat(22), ''],
+    ['\u2190 \u2192', 'MOVE'],
+    ['\u2193', 'DUCK  (when large)'],
+    ['S', 'JUMP'],
+    ['A', 'RUN  /  FIRE'],
+    ['S', 'START  (title screen)'],
+    ['─'.repeat(22), ''],
+    ['TIP: click game if keys stop working', ''],
+  ];
+
+  panel.innerHTML = rows.map(([key, action]) => {
+    if (!action) return `<span style="opacity:0.55">${key}</span>`;
+    const keySpan   = `<span style="color:${themeHex};min-width:7ch;display:inline-block">${key}</span>`;
+    const actSpan   = `<span style="opacity:0.55">${action}</span>`;
+    return keySpan + actSpan;
+  }).join('\n');
+
+  div.appendChild(panel);
+  document.body.appendChild(div);
+  marioControlsDiv = div;
+
+  // Fade out after 7 s, remove after transition
+  const fadeTimer = setTimeout(() => {
+    if (marioControlsDiv === div) div.style.opacity = '0';
+  }, 7000);
+  div.addEventListener('transitionend', () => {
+    clearTimeout(fadeTimer);
+    if (marioControlsDiv === div) { div.remove(); marioControlsDiv = null; }
+  });
+}
+
 function closePage() {
-  activePage = null;
-  pageHitAreas = [];
-  subHoverId = null;
-  // Stop music polling when leaving the music page
+  const prev = pagePrev;
+  pagePrev = null;
+
+  // Tear down mario iframe + controls overlay
+  if (marioFrame) { marioFrame.style.display = 'none'; }
+  if (marioControlsDiv) { marioControlsDiv.remove(); marioControlsDiv = null; }
+  // Stop music polling
   if (_musicPollTimer) { clearInterval(_musicPollTimer); _musicPollTimer = null; }
-  // Release keyboard from doom-kb so doom stops receiving input
+  // Release doom keyboard
   const kb = document.getElementById('doom-kb');
   if (kb) kb.blur();
+
+  if (prev) {
+    // Navigate back to hub (e.g. doom/mario → arcade)
+    openPage(prev);
+  } else {
+    activePage = null;
+    pageHitAreas = [];
+    subHoverId = null;
+  }
 }
 
 // Links
@@ -391,7 +540,7 @@ const MENU_LINKS = {
   5: null,
   6: { type: 'page', page: 'socials' },
   7: null,
-  8: { type: 'page', page: 'doom' },
+  8: { type: 'page', page: 'arcade' },
 };
 
 // Letterboxd data — real posters via TMDB image CDN
@@ -473,6 +622,7 @@ async function boot() {
   window.addEventListener('resize', () => {
     resize();
     asciiCache.w = -1; // invalidate PNG cache on resize
+    if (activePage === 'mario') _positionMarioFrame(); // keep iframe aligned on resize
   });
 
   // Offscreen 2D canvas for painting the terminal UI
@@ -563,6 +713,26 @@ async function boot() {
       drawTerminal(ctx, W, H);
     }
 
+    // Boot overlay — drawn on top of terminal before persistence upload
+    // so it gets the full CRT shader treatment
+    if (!BOOT_DONE && !_portrait) {
+      if (bootStartTime === null) {
+        bootStartTime = performance.now();
+        bootSfx.play().catch(() => {
+          // Blocked by autoplay policy — play on first interaction instead
+          const playOnce = () => { bootSfx.play().catch(() => {}); document.removeEventListener('click', playOnce); document.removeEventListener('keydown', playOnce); };
+          document.addEventListener('click', playOnce, { once: true });
+          document.addEventListener('keydown', playOnce, { once: true });
+        });
+      }
+      const be = (performance.now() - bootStartTime) / 1000;
+      if (be >= BOOT_DUR) {
+        BOOT_DONE = true;
+      } else {
+        drawBootOverlay(ctx, W, H, be);
+      }
+    }
+
     // 2. Phosphor persistence: decay persist canvas, then stamp new frame
     //    Overlay black at 18% opacity → previous frame fades over ~6 frames
     pctx.globalCompositeOperation = 'source-over';
@@ -643,6 +813,18 @@ async function boot() {
     }
   }, true);
 
+  // Mario iframe ESC bridge — keyboard events don't cross iframe boundaries,
+  // so the iframe posts a message when ESC is pressed inside the game.
+  window.addEventListener('message', e => {
+    if (e.data && e.data.type === 'mario-esc' && activePage === 'mario') closePage();
+  });
+
+  // Clicking anywhere on the canvas while mario is active refocuses the iframe
+  // so keyboard input keeps working even if focus was stolen by the parent page.
+  canvas.addEventListener('click', () => {
+    if (activePage === 'mario' && marioFrame) marioFrame.contentWindow.focus();
+  });
+
   // Wheel — scroll lists dependent on cursor/page
   canvas.addEventListener('wheel', e => {
     e.preventDefault();
@@ -653,15 +835,19 @@ async function boot() {
       menuScrollY = Math.max(0, Math.min(menuScrollMax, menuScrollY + e.deltaY * 0.6));
     } else {
       // Scroll active page
-      if (activePage === 'letterboxd' || activePage === 'socials' || activePage === 'twitter-error' || activePage === 'music' || activePage === 'discord') {
+      if (activePage === 'letterboxd' || activePage === 'socials' || activePage === 'twitter-error' || activePage === 'music' || activePage === 'discord' || activePage === 'arcade') {
         lbScrollY = Math.max(0, Math.min(lbScrollMax, lbScrollY + e.deltaY * 0.6));
       }
     }
   }, { passive: false });
 
   // Hover SFX setup
-  const hoverSfx = new Audio('hover.mp3');
+  const hoverSfx = new Audio('/hover.mp3');
   hoverSfx.volume = 0.6; // Not too loud
+
+  // Boot SFX — played once on first frame (may need user gesture on some browsers)
+  const bootSfx = new Audio('/boot.mp3');
+  bootSfx.volume = 1.0;
 
   // Mousemove — sub-link hover (in active page) + sidebar hover
   let lastHovered = -1;
@@ -902,6 +1088,8 @@ async function boot() {
     if (id === 'twitter') { openPage('twitter-error'); return; }
     if (id === 'lb_link') { window.open('https://letterboxd.com/psfo', '_blank'); return; }
     if (id === 'discord-link') { window.open('https://discord.com/users/1426930274213822595', '_blank', 'noopener'); return; }
+    if (id === 'game-doom')  { pagePrev = 'arcade'; openPage('doom');  return; }
+    if (id === 'game-mario') { pagePrev = 'arcade'; openPage('mario'); return; }
   }
 }
 
@@ -1056,7 +1244,7 @@ const MENU = [
   ['[▩]', '@images'],     // mosaic square  — image gallery
   ['[⊕]', '@socials'],    // circled plus   — social graph
   ['[§]', '@diary'],      // section mark   — journal / prose
-  ['[►]', '@doom'],       // play arrow     — run the game
+  ['[►]', '@arcade'],     // play arrow     — arcade hub
 ];
 
 
@@ -1225,7 +1413,7 @@ function drawAscii(ctx, x, y, w, h) {
     ctx.globalAlpha = 1.0;
     try {
       ctx.globalCompositeOperation = 'multiply';
-      ctx.fillStyle = 'rgba(244, 176, 40, 1.0)';
+      ctx.fillStyle = `rgba(${THEME.r}, ${THEME.g}, ${THEME.b}, 1.0)`;
       ctx.fillRect(x, y, w, h);
     } finally {
       ctx.globalCompositeOperation = 'source-over';
@@ -1278,6 +1466,67 @@ function drawAscii(ctx, x, y, w, h) {
   }
 
   ctx.restore();
+}
+
+// ── Boot overlay ──────────────────────────────────────────────────────────────
+// Drawn on top of the terminal each frame during boot. Gets full CRT shader.
+
+function drawBootOverlay(ctx, W, H, t) {
+  const CY = H / 2;
+
+  // Phase 1 (0–0.3s): pure black — power off state
+  if (t < 0.3) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    return;
+  }
+
+  // Phase 2 (0.3–4.2s): classic CRT expand — thin line grows from center to fill screen
+  if (t < 4.2) {
+    const p = (t - 0.3) / 3.9;                     // 0 → 1
+    const ease = 1 - Math.pow(1 - p, 2.8);          // ease-out: fast open, slows near edges
+    const halfH = ease * (H * 0.52);                // slightly past half so band fully covers
+
+    const bandTop    = Math.max(0, CY - halfH);
+    const bandBottom = Math.min(H, CY + halfH);
+
+    // Black above the expanding band
+    if (bandTop > 0) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, bandTop);
+    }
+    // Black below the expanding band
+    if (bandBottom < H) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, bandBottom, W, H - bandBottom);
+    }
+
+    // Glowing edge lines at the expanding boundary (phosphor bloom)
+    if (halfH > 3) {
+      const glowH = Math.min(20, halfH * 0.1);
+      const dimTop = ctx.createLinearGradient(0, bandTop, 0, bandTop + glowH);
+      dimTop.addColorStop(0, `rgba(${THEME.r},${THEME.g},${THEME.b},0.5)`);
+      dimTop.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = dimTop;
+      ctx.fillRect(0, bandTop, W, glowH);
+
+      const dimBot = ctx.createLinearGradient(0, bandBottom - glowH, 0, bandBottom);
+      dimBot.addColorStop(0, 'rgba(0,0,0,0)');
+      dimBot.addColorStop(1, `rgba(${THEME.r},${THEME.g},${THEME.b},0.5)`);
+      ctx.fillStyle = dimBot;
+      ctx.fillRect(0, bandBottom - glowH, W, glowH);
+    }
+    return;
+  }
+
+  // Phase 3 (4.2–5.0s): very subtle flicker settling — barely visible
+  const p = (t - 4.2) / (BOOT_DUR - 4.2);
+  const flicker = Math.sin(t * 11) * 0.5 + 0.5;   // slow, gentle
+  const alpha = Math.max(0, (1 - p) * 0.10 * flicker);
+  if (alpha > 0.005) {
+    ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+    ctx.fillRect(0, 0, W, H);
+  }
 }
 
 // ── Status footer ─────────────────────────────────────────────────────────────
@@ -1488,7 +1737,9 @@ function drawPage(ctx, x, y, w, h, elapsed) {
   else if (activePage === 'library') drawPageLibrary(ctx, x, y, w, h, elapsed);
   else if (activePage === 'music') drawPageMusic(ctx, x, y, w, h, elapsed);
   else if (activePage === 'discord') drawPageDiscord(ctx, x, y, w, h, elapsed);
+  else if (activePage === 'arcade') drawPageArcade(ctx, x, y, w, h, elapsed);
   else if (activePage === 'doom') drawPageDoom(ctx, x, y, w, h, elapsed);
+  else if (activePage === 'mario') drawPageMario(ctx, x, y, w, h);
 
   ctx.restore();
 }
@@ -2380,6 +2631,324 @@ function drawPageLibrary(ctx, x, y, w, h, elapsed) {
     const fy = cy + row * (fH * 1.55);
     drawFolder(ctx, fx, fy, fW, fH, f.label, f.id, elapsed, 0.25 + i * revDelay);
   });
+}
+
+// ── Arcade game catalogue — add entries here to extend the list ───────────────
+const ARCADE_GAMES = [
+  {
+    id:     'game-doom',
+    name:   'DOOM',
+    year:   '1993',
+    genre:  'FPS',
+    engine: 'WASM FREEDOOM',
+    blurb:  'Descend into hell. Fight demons through\nfortresses and flesh. No mercy.',
+    controls: [
+      ['\u2191 \u2193', 'MOVE FWD / BACK'],
+      ['\u2190 \u2192', 'TURN'],
+      ['CTRL', 'SHOOT'],
+      ['SPACE', 'USE / OPEN'],
+      ['ALT+\u2190\u2192', 'STRAFE'],
+      ['TAB', 'AUTOMAP'],
+    ],
+    // Canvas poster painter — receives (ctx, px, py, pw, ph)
+    drawPoster: (ctx, px, py, pw, ph) => {
+      // Dark red background
+      ctx.fillStyle = '#0a0000';
+      ctx.fillRect(px, py, pw, ph);
+      // Scanline texture
+      for (let sy = py; sy < py + ph; sy += 3) {
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillRect(px, sy, pw, 1);
+      }
+      // Red glow vignette from center
+      const rg = ctx.createRadialGradient(px + pw / 2, py + ph * 0.55, 0, px + pw / 2, py + ph * 0.55, pw * 0.7);
+      rg.addColorStop(0,   'rgba(180,20,0,0.45)');
+      rg.addColorStop(0.5, 'rgba(100,5,0,0.2)');
+      rg.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = rg;
+      ctx.fillRect(px, py, pw, ph);
+      // "DOOM" logotype
+      const dfs = pw * 0.38;
+      ctx.font         = `${dfs}px VT323`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor  = 'rgba(255,30,0,0.95)';
+      ctx.shadowBlur   = 28;
+      ctx.fillStyle    = '#ff2200';
+      ctx.fillText('DOOM', px + pw / 2, py + ph * 0.42);
+      ctx.shadowBlur   = 12;
+      ctx.fillStyle    = '#ff6644';
+      ctx.fillText('DOOM', px + pw / 2, py + ph * 0.42);
+      ctx.shadowBlur   = 0;
+      // Sub-label
+      const sfs = pw * 0.095;
+      ctx.font      = `${sfs}px VT323`;
+      ctx.fillStyle = 'rgba(255,80,40,0.55)';
+      ctx.fillText('FREEDOOM ENGINE', px + pw / 2, py + ph * 0.72);
+      // Skull glyphs
+      ctx.font      = `${pw * 0.13}px VT323`;
+      ctx.fillStyle = 'rgba(180,20,0,0.4)';
+      ctx.fillText('\u2620  \u2620', px + pw / 2, py + ph * 0.88);
+      ctx.textAlign    = 'left';
+      ctx.textBaseline = 'top';
+    },
+  },
+  {
+    id:     'game-mario',
+    name:   'MARIO',
+    year:   '1985',
+    genre:  'PLATFORMER',
+    engine: 'INFINITE MARIO HTML5',
+    blurb:  'Run, jump, stomp through infinite\nprocedurally generated worlds.',
+    controls: [
+      ['\u2190 \u2192', 'MOVE'],
+      ['\u2193', 'DUCK  (when large)'],
+      ['S', 'JUMP'],
+      ['A', 'RUN  /  FIRE'],
+      ['S', 'START  (title screen)'],
+    ],
+    drawPoster: (ctx, px, py, pw, ph) => {
+      // Dark warm background
+      ctx.fillStyle = '#060400';
+      ctx.fillRect(px, py, pw, ph);
+      // Pixel block grid overlay (retro feel)
+      const block = Math.round(pw / 10);
+      for (let bx = px; bx < px + pw; bx += block) {
+        ctx.fillStyle = 'rgba(255,200,0,0.025)';
+        ctx.fillRect(bx, py, 1, ph);
+      }
+      for (let by = py; by < py + ph; by += block) {
+        ctx.fillStyle = 'rgba(255,200,0,0.025)';
+        ctx.fillRect(px, by, pw, 1);
+      }
+      // Warm amber glow
+      const mg = ctx.createRadialGradient(px + pw / 2, py + ph * 0.45, 0, px + pw / 2, py + ph * 0.45, pw * 0.65);
+      mg.addColorStop(0,   'rgba(244,196,54,0.3)');
+      mg.addColorStop(0.6, 'rgba(200,120,0,0.1)');
+      mg.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = mg;
+      ctx.fillRect(px, py, pw, ph);
+      // "MARIO" logotype
+      const mfs = pw * 0.30;
+      ctx.font         = `${mfs}px VT323`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor  = 'rgba(244,196,54,0.9)';
+      ctx.shadowBlur   = 24;
+      ctx.fillStyle    = '#F4C436';
+      ctx.fillText('MARIO', px + pw / 2, py + ph * 0.38);
+      ctx.shadowBlur   = 10;
+      ctx.fillStyle    = '#ffe080';
+      ctx.fillText('MARIO', px + pw / 2, py + ph * 0.38);
+      ctx.shadowBlur   = 0;
+      // Stars / coins
+      ctx.font         = `${pw * 0.11}px VT323`;
+      ctx.fillStyle    = 'rgba(244,196,54,0.4)';
+      ctx.fillText('\u2605  \u25cb  \u2605', px + pw / 2, py + ph * 0.62);
+      // Sub-label
+      ctx.font      = `${pw * 0.085}px VT323`;
+      ctx.fillStyle = 'rgba(244,196,54,0.45)';
+      ctx.fillText('INFINITE WORLDS', px + pw / 2, py + ph * 0.80);
+      ctx.textAlign    = 'left';
+      ctx.textBaseline = 'top';
+    },
+  },
+];
+
+// ───── PAGE: ARCADE HUB ──────────────────────────────────────────────────────
+function drawPageArcade(ctx, x, y, w, h, elapsed) {
+  const PAD    = w * 0.05;
+  const fs     = Math.min(h / 22, w / 26);
+  const lh     = fs * 1.45;
+  const cx     = x + PAD;
+  const cw     = w - PAD * 2;
+
+  ctx.font         = `${fs}px VT323`;
+  ctx.textBaseline = 'top';
+  ctx.textAlign    = 'left';
+
+  // ── Fixed header (outside scroll) ──────────────────────────────────────────
+  let hy = y + PAD * 0.6;
+  drawSubLink(ctx, '[ESC] \u2190 BACK', cx, hy, w * 0.28, lh, 'back', elapsed, 0);
+
+  const titleFS = fs * 2.0;
+  ctx.font = `${titleFS}px VT323`;
+  hy += lh * 1.5;
+  pgGlow(ctx, 34);
+  ctx.fillStyle = AMBER;
+  ctx.fillText(typeReveal('ARCADE', elapsed, 0.04), cx, hy);
+  pgGlowOff(ctx);
+
+  ctx.font = `${fs}px VT323`;
+  hy += titleFS * 1.05;
+  pgGlow(ctx, 6);
+  ctx.fillStyle = AMBER_DIM;
+  ctx.fillText(typeReveal('SELECT A GAME  —  SCROLL FOR MORE', elapsed, 0.18), cx, hy);
+  pgGlowOff(ctx);
+
+  hy += lh * 0.5;
+  ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.28)`;
+  ctx.fillRect(cx, hy + lh * 0.8, cw, 1);
+  hy += lh * 1.3;
+
+  const headerH = hy - y; // total header height consumed
+
+  // ── Scrollable card list ────────────────────────────────────────────────────
+  const posterW  = cw * 0.30;
+  const posterH  = posterW * 1.05;   // slightly taller than wide — classic poster ratio
+  const cardH    = posterH + PAD * 0.6;
+  const cardGap  = lh * 1.2;
+  const totalListH = ARCADE_GAMES.length * (cardH + cardGap);
+  lbScrollMax = Math.max(0, totalListH - (h - headerH - PAD));
+
+  const listTop  = hy;
+  const listH    = h - headerH - PAD * 0.5;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, listTop, w, listH);
+  ctx.clip();
+
+  let cy = listTop - lbScrollY;
+
+  ARCADE_GAMES.forEach((game, gi) => {
+    if (cy + cardH < listTop || cy > listTop + listH) {
+      cy += cardH + cardGap; return; // skip off-screen cards (perf)
+    }
+
+    const hs = subHoverState[game.id] || 0;
+
+    // Card background highlight on hover
+    if (hs > 0) {
+      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${hs * 0.045})`;
+      ctx.fillRect(cx - PAD * 0.3, cy - PAD * 0.2, cw + PAD * 0.6, cardH + PAD * 0.4);
+    }
+
+    // ── Poster box ────────────────────────────────────────────────────────────
+    const px = cx;
+    const py = cy;
+    const pw = posterW;
+    const ph = posterH;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(px, py, pw, ph);
+    ctx.clip();
+    game.drawPoster(ctx, px, py, pw, ph);
+    ctx.restore();
+
+    // Poster border
+    ctx.strokeStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${0.25 + hs * 0.4})`;
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(px, py, pw, ph);
+
+    // ── Details column ────────────────────────────────────────────────────────
+    const dx  = cx + posterW + PAD * 0.8;
+    const dw  = cw - posterW - PAD * 0.8;
+    let   dy  = cy;
+
+    // Game name
+    const nameFS = fs * 1.6;
+    ctx.font         = `${nameFS}px VT323`;
+    ctx.textBaseline = 'top';
+    ctx.textAlign    = 'left';
+    ctx.shadowColor  = `rgba(${THEME.r},${THEME.g},${THEME.b},0.8)`;
+    ctx.shadowBlur   = 16 + hs * 8;
+    ctx.fillStyle    = AMBER;
+    ctx.fillText(typeReveal(game.name, elapsed, 0.08 + gi * 0.1), dx, dy);
+    ctx.shadowBlur   = 0;
+    dy += nameFS * 1.1;
+
+    // Genre · Year
+    ctx.font      = `${fs * 0.82}px VT323`;
+    ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.45)`;
+    ctx.fillText(`${game.genre}  \u00b7  ${game.year}  \u00b7  ${game.engine}`, dx, dy);
+    dy += lh * 0.9;
+
+    // Separator
+    ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.2)`;
+    ctx.fillRect(dx, dy, dw * 0.85, 1);
+    dy += lh * 0.75;
+
+    // Blurb
+    ctx.font      = `${fs * 0.88}px VT323`;
+    ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.55)`;
+    game.blurb.split('\n').forEach(line => {
+      ctx.fillText(line, dx, dy);
+      dy += lh * 0.85;
+    });
+    dy += lh * 0.3;
+
+    // Controls mini-table
+    ctx.font = `${fs * 0.78}px VT323`;
+    game.controls.forEach(([key, action]) => {
+      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.7)`;
+      ctx.fillText(key, dx, dy);
+      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.35)`;
+      ctx.fillText(action, dx + fs * 4.5, dy);
+      dy += lh * 0.8;
+    });
+    dy += lh * 0.3;
+
+    // Launch button
+    const btnLabel = '[ LAUNCH ]';
+    const btnW     = fs * 8.5;
+    const btnH     = lh * 1.1;
+    const btnAlpha = 0.25 + hs * 0.55;
+    ctx.strokeStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${btnAlpha})`;
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(dx, dy, btnW, btnH);
+    if (hs > 0) {
+      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${hs * 0.12})`;
+      ctx.fillRect(dx, dy, btnW, btnH);
+    }
+    ctx.font         = `${fs * 0.85}px VT323`;
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle    = `rgba(${THEME.r},${THEME.g},${THEME.b},${0.55 + hs * 0.4})`;
+    pgGlow(ctx, hs > 0.1 ? 10 : 0);
+    ctx.fillText(btnLabel, dx + fs * 0.5, dy + btnH / 2);
+    pgGlowOff(ctx);
+    ctx.textBaseline = 'top';
+
+    // Register hit (entire card row for ease of clicking)
+    if (elapsed > 0.35) {
+      regHit(cx - PAD * 0.3, cy - PAD * 0.2, cw + PAD * 0.6, cardH + PAD * 0.4, game.id);
+    }
+
+    // Card divider
+    cy += cardH + cardGap;
+    if (gi < ARCADE_GAMES.length - 1) {
+      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.12)`;
+      ctx.fillRect(cx, cy - cardGap * 0.55, cw, 1);
+    }
+  });
+
+  ctx.restore();
+}
+
+// ───── PAGE: MARIO (iframe active — canvas shows minimal chrome) ─────────────
+function drawPageMario(ctx, x, y, w, h) {
+  // The iframe sits on top of this region — we just draw the amber border and
+  // a brief "LOADING" message that disappears once the iframe paints over it.
+  const fs  = Math.min(h / 20, w / 24);
+
+  ctx.font         = `${fs}px VT323`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign    = 'center';
+  pgGlow(ctx, 14);
+  ctx.fillStyle = AMBER_DIM;
+  ctx.fillText('LOADING MARIO . . .', x + w / 2, y + h / 2);
+  pgGlowOff(ctx);
+
+  // ESC badge — identical to doom's so muscle memory works
+  ctx.textBaseline = 'top';
+  ctx.textAlign    = 'right';
+  const badgeFS = Math.min(h / 22, w / 28);
+  ctx.font      = `${badgeFS}px VT323`;
+  pgGlow(ctx, 8);
+  ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.6)`;
+  ctx.fillText('[ESC] EXIT', x + w - badgeFS * 0.5, y + badgeFS * 0.4);
+  pgGlowOff(ctx);
 }
 
 // ───── PAGE: DOOM ──────────────────────────────────────────────────────
