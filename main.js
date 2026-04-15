@@ -882,7 +882,7 @@ async function boot() {
       const idx = parseInt(id.split('-')[2], 10);
       if (!isNaN(idx) && idx >= 0 && idx < THEMES.length) {
         themeIdx = idx;
-        THEME = THEMES[themeIdx]; // Triggers proxy
+        windowTheme = THEMES[themeIdx];
         localStorage.setItem('crt-theme', themeIdx.toString());
         
         // Wipe persistence caches completely so color doesn't smear
@@ -1289,7 +1289,7 @@ function drawFooter(ctx, x, y, w, h, fs) {
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
 
-  const mid = y + h * 0.3;
+  const mid = y + h * 0.08;
 
   // ── Theme Dropdown Button ──
   const tfs = fs * 0.85; // A tad bit tiny
