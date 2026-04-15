@@ -2633,141 +2633,57 @@ function drawPageLibrary(ctx, x, y, w, h, elapsed) {
   });
 }
 
-// ── Arcade game catalogue — add entries here to extend the list ───────────────
+// ── Arcade poster image cache ─────────────────────────────────────────────────
+const _arcadeImgs = {}; // id → HTMLImageElement | 'loading' | 'error'
+function _loadArcadeImg(id, src) {
+  if (_arcadeImgs[id]) return;
+  _arcadeImgs[id] = 'loading';
+  const img = new Image();
+  img.onload  = () => { _arcadeImgs[id] = img; };
+  img.onerror = () => { _arcadeImgs[id] = 'error'; };
+  img.src = src;
+}
+
+// ── Arcade game catalogue — drop an object here to add a new game ─────────────
 const ARCADE_GAMES = [
   {
-    id:     'game-doom',
-    name:   'DOOM',
-    year:   '1993',
-    genre:  'FPS',
-    engine: 'WASM FREEDOOM',
-    blurb:  'Descend into hell. Fight demons through\nfortresses and flesh. No mercy.',
-    controls: [
-      ['\u2191 \u2193', 'MOVE FWD / BACK'],
-      ['\u2190 \u2192', 'TURN'],
-      ['CTRL', 'SHOOT'],
-      ['SPACE', 'USE / OPEN'],
-      ['ALT+\u2190\u2192', 'STRAFE'],
-      ['TAB', 'AUTOMAP'],
-    ],
-    // Canvas poster painter — receives (ctx, px, py, pw, ph)
-    drawPoster: (ctx, px, py, pw, ph) => {
-      // Dark red background
-      ctx.fillStyle = '#0a0000';
-      ctx.fillRect(px, py, pw, ph);
-      // Scanline texture
-      for (let sy = py; sy < py + ph; sy += 3) {
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.fillRect(px, sy, pw, 1);
-      }
-      // Red glow vignette from center
-      const rg = ctx.createRadialGradient(px + pw / 2, py + ph * 0.55, 0, px + pw / 2, py + ph * 0.55, pw * 0.7);
-      rg.addColorStop(0,   'rgba(180,20,0,0.45)');
-      rg.addColorStop(0.5, 'rgba(100,5,0,0.2)');
-      rg.addColorStop(1,   'rgba(0,0,0,0)');
-      ctx.fillStyle = rg;
-      ctx.fillRect(px, py, pw, ph);
-      // "DOOM" logotype
-      const dfs = pw * 0.38;
-      ctx.font         = `${dfs}px VT323`;
-      ctx.textAlign    = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowColor  = 'rgba(255,30,0,0.95)';
-      ctx.shadowBlur   = 28;
-      ctx.fillStyle    = '#ff2200';
-      ctx.fillText('DOOM', px + pw / 2, py + ph * 0.42);
-      ctx.shadowBlur   = 12;
-      ctx.fillStyle    = '#ff6644';
-      ctx.fillText('DOOM', px + pw / 2, py + ph * 0.42);
-      ctx.shadowBlur   = 0;
-      // Sub-label
-      const sfs = pw * 0.095;
-      ctx.font      = `${sfs}px VT323`;
-      ctx.fillStyle = 'rgba(255,80,40,0.55)';
-      ctx.fillText('FREEDOOM ENGINE', px + pw / 2, py + ph * 0.72);
-      // Skull glyphs
-      ctx.font      = `${pw * 0.13}px VT323`;
-      ctx.fillStyle = 'rgba(180,20,0,0.4)';
-      ctx.fillText('\u2620  \u2620', px + pw / 2, py + ph * 0.88);
-      ctx.textAlign    = 'left';
-      ctx.textBaseline = 'top';
-    },
+    id:       'game-doom',
+    name:     'DOOM',
+    year:     '1993',
+    genre:    'FPS',
+    engine:   'WASM FREEDOOM',
+    blurb:    'Descend into hell. Fight demons\nthrough fortresses and flesh.',
+    controls: '\u2191\u2193\u2190\u2192  CTRL  SPACE  TAB',
+    poster:   '/arcade/doom.jpg',
   },
   {
-    id:     'game-mario',
-    name:   'MARIO',
-    year:   '1985',
-    genre:  'PLATFORMER',
-    engine: 'INFINITE MARIO HTML5',
-    blurb:  'Run, jump, stomp through infinite\nprocedurally generated worlds.',
-    controls: [
-      ['\u2190 \u2192', 'MOVE'],
-      ['\u2193', 'DUCK  (when large)'],
-      ['S', 'JUMP'],
-      ['A', 'RUN  /  FIRE'],
-      ['S', 'START  (title screen)'],
-    ],
-    drawPoster: (ctx, px, py, pw, ph) => {
-      // Dark warm background
-      ctx.fillStyle = '#060400';
-      ctx.fillRect(px, py, pw, ph);
-      // Pixel block grid overlay (retro feel)
-      const block = Math.round(pw / 10);
-      for (let bx = px; bx < px + pw; bx += block) {
-        ctx.fillStyle = 'rgba(255,200,0,0.025)';
-        ctx.fillRect(bx, py, 1, ph);
-      }
-      for (let by = py; by < py + ph; by += block) {
-        ctx.fillStyle = 'rgba(255,200,0,0.025)';
-        ctx.fillRect(px, by, pw, 1);
-      }
-      // Warm amber glow
-      const mg = ctx.createRadialGradient(px + pw / 2, py + ph * 0.45, 0, px + pw / 2, py + ph * 0.45, pw * 0.65);
-      mg.addColorStop(0,   'rgba(244,196,54,0.3)');
-      mg.addColorStop(0.6, 'rgba(200,120,0,0.1)');
-      mg.addColorStop(1,   'rgba(0,0,0,0)');
-      ctx.fillStyle = mg;
-      ctx.fillRect(px, py, pw, ph);
-      // "MARIO" logotype
-      const mfs = pw * 0.30;
-      ctx.font         = `${mfs}px VT323`;
-      ctx.textAlign    = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowColor  = 'rgba(244,196,54,0.9)';
-      ctx.shadowBlur   = 24;
-      ctx.fillStyle    = '#F4C436';
-      ctx.fillText('MARIO', px + pw / 2, py + ph * 0.38);
-      ctx.shadowBlur   = 10;
-      ctx.fillStyle    = '#ffe080';
-      ctx.fillText('MARIO', px + pw / 2, py + ph * 0.38);
-      ctx.shadowBlur   = 0;
-      // Stars / coins
-      ctx.font         = `${pw * 0.11}px VT323`;
-      ctx.fillStyle    = 'rgba(244,196,54,0.4)';
-      ctx.fillText('\u2605  \u25cb  \u2605', px + pw / 2, py + ph * 0.62);
-      // Sub-label
-      ctx.font      = `${pw * 0.085}px VT323`;
-      ctx.fillStyle = 'rgba(244,196,54,0.45)';
-      ctx.fillText('INFINITE WORLDS', px + pw / 2, py + ph * 0.80);
-      ctx.textAlign    = 'left';
-      ctx.textBaseline = 'top';
-    },
+    id:       'game-mario',
+    name:     'MARIO',
+    year:     '1985',
+    genre:    'PLATFORMER',
+    engine:   'INFINITE MARIO HTML5',
+    blurb:    'Run, jump, stomp through infinite\nprocedurally generated worlds.',
+    controls: '\u2190\u2192  S (JUMP)  A (RUN / FIRE)',
+    poster:   '/arcade/mario.jpg',
   },
 ];
 
 // ───── PAGE: ARCADE HUB ──────────────────────────────────────────────────────
 function drawPageArcade(ctx, x, y, w, h, elapsed) {
-  const PAD    = w * 0.05;
-  const fs     = Math.min(h / 22, w / 26);
-  const lh     = fs * 1.45;
-  const cx     = x + PAD;
-  const cw     = w - PAD * 2;
+  const PAD  = w * 0.05;
+  const fs   = Math.min(h / 22, w / 26);
+  const lh   = fs * 1.45;
+  const cx   = x + PAD;
+  const cw   = w - PAD * 2;
+
+  // Kick off image loads (no-op once loaded)
+  ARCADE_GAMES.forEach(g => _loadArcadeImg(g.id, g.poster));
 
   ctx.font         = `${fs}px VT323`;
   ctx.textBaseline = 'top';
   ctx.textAlign    = 'left';
 
-  // ── Fixed header (outside scroll) ──────────────────────────────────────────
+  // ── Fixed header ──────────────────────────────────────────────────────────
   let hy = y + PAD * 0.6;
   drawSubLink(ctx, '[ESC] \u2190 BACK', cx, hy, w * 0.28, lh, 'back', elapsed, 0);
 
@@ -2783,26 +2699,25 @@ function drawPageArcade(ctx, x, y, w, h, elapsed) {
   hy += titleFS * 1.05;
   pgGlow(ctx, 6);
   ctx.fillStyle = AMBER_DIM;
-  ctx.fillText(typeReveal('SELECT A GAME  —  SCROLL FOR MORE', elapsed, 0.18), cx, hy);
+  ctx.fillText(typeReveal('SELECT A GAME', elapsed, 0.18), cx, hy);
   pgGlowOff(ctx);
+  hy += lh * 0.55;
+  ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.25)`;
+  ctx.fillRect(cx, hy + lh * 0.7, cw, 1);
+  hy += lh * 1.25;
 
-  hy += lh * 0.5;
-  ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.28)`;
-  ctx.fillRect(cx, hy + lh * 0.8, cw, 1);
-  hy += lh * 1.3;
+  const headerH = hy - y;
 
-  const headerH = hy - y; // total header height consumed
+  // ── Card dimensions — poster drives height, details column is clipped to it ─
+  const posterW = cw * 0.28;
+  const posterH = posterW * 1.40;  // tall portrait ratio (classic cover art)
+  const cardH   = posterH;
+  const cardGap = lh * 1.6;
 
-  // ── Scrollable card list ────────────────────────────────────────────────────
-  const posterW  = cw * 0.30;
-  const posterH  = posterW * 1.05;   // slightly taller than wide — classic poster ratio
-  const cardH    = posterH + PAD * 0.6;
-  const cardGap  = lh * 1.2;
-  const totalListH = ARCADE_GAMES.length * (cardH + cardGap);
-  lbScrollMax = Math.max(0, totalListH - (h - headerH - PAD));
+  lbScrollMax = Math.max(0, ARCADE_GAMES.length * (cardH + cardGap) - (h - headerH - PAD));
 
-  const listTop  = hy;
-  const listH    = h - headerH - PAD * 0.5;
+  const listTop = hy;
+  const listH   = h - headerH - PAD * 0.5;
 
   ctx.save();
   ctx.beginPath();
@@ -2812,118 +2727,154 @@ function drawPageArcade(ctx, x, y, w, h, elapsed) {
   let cy = listTop - lbScrollY;
 
   ARCADE_GAMES.forEach((game, gi) => {
+    // Skip fully off-screen cards
     if (cy + cardH < listTop || cy > listTop + listH) {
-      cy += cardH + cardGap; return; // skip off-screen cards (perf)
+      cy += cardH + cardGap; return;
     }
 
-    const hs = subHoverState[game.id] || 0;
+    const hs  = subHoverState[game.id] || 0;
+    const img = _arcadeImgs[game.id];
 
-    // Card background highlight on hover
+    // Hover glow bg
     if (hs > 0) {
-      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${hs * 0.045})`;
-      ctx.fillRect(cx - PAD * 0.3, cy - PAD * 0.2, cw + PAD * 0.6, cardH + PAD * 0.4);
+      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${hs * 0.04})`;
+      ctx.fillRect(cx - 4, cy - 4, cw + 8, cardH + 8);
     }
 
-    // ── Poster box ────────────────────────────────────────────────────────────
-    const px = cx;
-    const py = cy;
-    const pw = posterW;
-    const ph = posterH;
-
+    // ── Poster ──────────────────────────────────────────────────────────────
     ctx.save();
     ctx.beginPath();
-    ctx.rect(px, py, pw, ph);
+    ctx.rect(cx, cy, posterW, posterH);
     ctx.clip();
-    game.drawPoster(ctx, px, py, pw, ph);
+
+    if (img && img !== 'loading' && img !== 'error') {
+      // Cover-fit: scale to fill box, center-crop
+      const ir = img.width / img.height;
+      const br = posterW / posterH;
+      let sx, sy, sw, sh;
+      if (ir > br) { sh = img.height; sw = sh * br; sx = (img.width - sw) / 2; sy = 0; }
+      else          { sw = img.width;  sh = sw / br; sy = (img.height - sh) / 2; sx = 0; }
+      ctx.drawImage(img, sx, sy, sw, sh, cx, cy, posterW, posterH);
+      // Amber phosphor tint via multiply
+      try {
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.fillStyle = `rgba(${THEME.r},${Math.floor(THEME.g * 0.85)},${Math.floor(THEME.b * 0.4)},0.55)`;
+        ctx.fillRect(cx, cy, posterW, posterH);
+      } finally {
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      // Slight dark vignette at poster edges
+      const vig = ctx.createLinearGradient(cx, cy, cx, cy + posterH);
+      vig.addColorStop(0,   'rgba(0,0,0,0.3)');
+      vig.addColorStop(0.3, 'rgba(0,0,0,0)');
+      vig.addColorStop(0.7, 'rgba(0,0,0,0)');
+      vig.addColorStop(1,   'rgba(0,0,0,0.55)');
+      ctx.fillStyle = vig;
+      ctx.fillRect(cx, cy, posterW, posterH);
+    } else {
+      // Fallback while loading
+      ctx.fillStyle = '#0a0800';
+      ctx.fillRect(cx, cy, posterW, posterH);
+      ctx.font         = `${fs * 0.8}px VT323`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign    = 'center';
+      ctx.fillStyle    = AMBER_DIM;
+      ctx.fillText(img === 'error' ? 'NO IMAGE' : 'LOADING...', cx + posterW / 2, cy + posterH / 2);
+      ctx.textBaseline = 'top';
+      ctx.textAlign    = 'left';
+    }
     ctx.restore();
 
     // Poster border
-    ctx.strokeStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${0.25 + hs * 0.4})`;
+    ctx.strokeStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${0.3 + hs * 0.45})`;
     ctx.lineWidth   = 1;
-    ctx.strokeRect(px, py, pw, ph);
+    ctx.strokeRect(cx, cy, posterW, posterH);
 
-    // ── Details column ────────────────────────────────────────────────────────
-    const dx  = cx + posterW + PAD * 0.8;
-    const dw  = cw - posterW - PAD * 0.8;
-    let   dy  = cy;
+    // ── Details column — clipped to cardH so nothing bleeds ─────────────────
+    const dx = cx + posterW + PAD * 0.85;
+    const dw = cw - posterW - PAD * 0.85;
 
-    // Game name
-    const nameFS = fs * 1.6;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(dx, cy, dw, cardH);
+    ctx.clip();
+
+    let dy = cy;
+
+    // Name
+    const nameFS = fs * 1.75;
     ctx.font         = `${nameFS}px VT323`;
     ctx.textBaseline = 'top';
     ctx.textAlign    = 'left';
-    ctx.shadowColor  = `rgba(${THEME.r},${THEME.g},${THEME.b},0.8)`;
-    ctx.shadowBlur   = 16 + hs * 8;
-    ctx.fillStyle    = AMBER;
-    ctx.fillText(typeReveal(game.name, elapsed, 0.08 + gi * 0.1), dx, dy);
-    ctx.shadowBlur   = 0;
-    dy += nameFS * 1.1;
+    pgGlow(ctx, 18 + hs * 8);
+    ctx.fillStyle = AMBER;
+    ctx.fillText(typeReveal(game.name, elapsed, 0.06 + gi * 0.08), dx, dy);
+    pgGlowOff(ctx);
+    dy += nameFS * 1.05;
 
     // Genre · Year
-    ctx.font      = `${fs * 0.82}px VT323`;
-    ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.45)`;
-    ctx.fillText(`${game.genre}  \u00b7  ${game.year}  \u00b7  ${game.engine}`, dx, dy);
-    dy += lh * 0.9;
-
-    // Separator
-    ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.2)`;
-    ctx.fillRect(dx, dy, dw * 0.85, 1);
+    ctx.font      = `${fs * 0.78}px VT323`;
+    ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.4)`;
+    ctx.fillText(`${game.genre}  \u00b7  ${game.year}`, dx, dy);
     dy += lh * 0.75;
 
+    // Engine tag
+    ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.28)`;
+    ctx.fillText(game.engine, dx, dy);
+    dy += lh * 0.8;
+
+    // Thin rule
+    ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.18)`;
+    ctx.fillRect(dx, dy, dw * 0.9, 1);
+    dy += lh * 0.7;
+
     // Blurb
-    ctx.font      = `${fs * 0.88}px VT323`;
+    ctx.font      = `${fs * 0.85}px VT323`;
     ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.55)`;
     game.blurb.split('\n').forEach(line => {
       ctx.fillText(line, dx, dy);
-      dy += lh * 0.85;
+      dy += lh * 0.88;
     });
-    dy += lh * 0.3;
+    dy += lh * 0.45;
 
-    // Controls mini-table
-    ctx.font = `${fs * 0.78}px VT323`;
-    game.controls.forEach(([key, action]) => {
-      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.7)`;
-      ctx.fillText(key, dx, dy);
-      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.35)`;
-      ctx.fillText(action, dx + fs * 4.5, dy);
-      dy += lh * 0.8;
-    });
-    dy += lh * 0.3;
+    // Controls hint (single compact line)
+    ctx.font      = `${fs * 0.72}px VT323`;
+    ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.38)`;
+    ctx.fillText(game.controls, dx, dy);
+    dy += lh * 1.1;
 
-    // Launch button
-    const btnLabel = '[ LAUNCH ]';
-    const btnW     = fs * 8.5;
-    const btnH     = lh * 1.1;
-    const btnAlpha = 0.25 + hs * 0.55;
-    ctx.strokeStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${btnAlpha})`;
+    // Launch button — pinned relative to card top, not dy, so it's always visible
+    const btnY    = cy + cardH - lh * 1.55;
+    const btnW    = fs * 8;
+    const btnH    = lh * 1.1;
+    ctx.strokeStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${0.3 + hs * 0.55})`;
     ctx.lineWidth   = 1;
-    ctx.strokeRect(dx, dy, btnW, btnH);
+    ctx.strokeRect(dx, btnY, btnW, btnH);
     if (hs > 0) {
-      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${hs * 0.12})`;
-      ctx.fillRect(dx, dy, btnW, btnH);
+      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},${hs * 0.14})`;
+      ctx.fillRect(dx, btnY, btnW, btnH);
     }
-    ctx.font         = `${fs * 0.85}px VT323`;
+    ctx.font         = `${fs * 0.82}px VT323`;
     ctx.textBaseline = 'middle';
-    ctx.fillStyle    = `rgba(${THEME.r},${THEME.g},${THEME.b},${0.55 + hs * 0.4})`;
-    pgGlow(ctx, hs > 0.1 ? 10 : 0);
-    ctx.fillText(btnLabel, dx + fs * 0.5, dy + btnH / 2);
+    ctx.fillStyle    = `rgba(${THEME.r},${THEME.g},${THEME.b},${0.6 + hs * 0.35})`;
+    pgGlow(ctx, hs > 0.05 ? 10 : 0);
+    ctx.fillText('[ LAUNCH ]', dx + fs * 0.5, btnY + btnH / 2);
     pgGlowOff(ctx);
-    ctx.textBaseline = 'top';
 
-    // Register hit (entire card row for ease of clicking)
-    if (elapsed > 0.35) {
-      regHit(cx - PAD * 0.3, cy - PAD * 0.2, cw + PAD * 0.6, cardH + PAD * 0.4, game.id);
-    }
+    ctx.restore(); // details clip
 
-    // Card divider
+    // Hit area: whole card
+    if (elapsed > 0.3) regHit(cx - 4, cy - 4, cw + 8, cardH + 8, game.id);
+
+    // Divider between cards
     cy += cardH + cardGap;
     if (gi < ARCADE_GAMES.length - 1) {
-      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.12)`;
-      ctx.fillRect(cx, cy - cardGap * 0.55, cw, 1);
+      ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.1)`;
+      ctx.fillRect(cx, cy - cardGap * 0.6, cw, 1);
     }
   });
 
-  ctx.restore();
+  ctx.restore(); // list clip
 }
 
 // ───── PAGE: MARIO (iframe active — canvas shows minimal chrome) ─────────────
