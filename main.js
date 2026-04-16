@@ -957,6 +957,12 @@ async function boot() {
           handleSubClick(hit.id); return;
         }
       }
+      // Allow sidebar items to be clicked directly while a page is open
+      for (const hit of menuHitAreas) {
+        if (x >= hit.x && x <= hit.x + hit.w && y >= hit.y && y <= hit.y + hit.h) {
+          onItemClick(hit.i); return;
+        }
+      }
       return;
     }
     for (const hit of menuHitAreas) {
@@ -1013,6 +1019,15 @@ async function boot() {
               gsap.to(subHoverState, { [hit.id]: 0, duration: 0.35, overwrite: 'auto' });
               handleSubClick(hit.id);
             }, 85);
+            return;
+          }
+        }
+        // Allow sidebar items to be tapped directly while a page is open
+        for (const hit of menuHitAreas) {
+          if (tx >= hit.x && tx <= hit.x + hit.w && ty >= hit.y && ty <= hit.y + hit.h && CLICKABLE.has(hit.i)) {
+            clickFlash[hit.i] = 1;
+            gsap.to(clickFlash, { [hit.i]: 0, duration: 0.55, ease: 'power2.out' });
+            setTimeout(() => onItemClick(hit.i), 50);
             return;
           }
         }
