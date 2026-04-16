@@ -899,8 +899,29 @@ async function boot() {
         }
         lastSubHovered = foundSub;
         subHoverId = foundSub;
-        canvas.style.cursor = foundSub ? 'pointer' : 'default';
       }
+
+      // ── Sidebar hover while page is open ──
+      let foundSidebar = -1;
+      for (const hit of menuHitAreas) {
+        if (x >= hit.x && x <= hit.x + hit.w && y >= hit.y && y <= hit.y + hit.h && CLICKABLE.has(hit.i)) {
+          foundSidebar = hit.i; break;
+        }
+      }
+      if (foundSidebar !== lastHovered) {
+        if (lastHovered !== -1)
+          gsap.to(hoverState, { [lastHovered]: 0, duration: 0.18, ease: 'power2.in', overwrite: 'auto' });
+        if (foundSidebar !== -1) {
+          if (!hoverState[foundSidebar]) hoverState[foundSidebar] = 0;
+          gsap.to(hoverState, { [foundSidebar]: 1, duration: 0.10, ease: 'power2.out', overwrite: 'auto' });
+          const clip = hoverSfx.cloneNode();
+          clip.volume = 0.5;
+          clip.play().catch(() => { });
+        }
+        lastHovered = foundSidebar;
+        hoveredItem = foundSidebar;
+      }
+      canvas.style.cursor = (foundSub || foundSidebar !== -1) ? 'pointer' : 'default';
       return;
     }
 
