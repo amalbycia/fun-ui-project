@@ -544,7 +544,7 @@ const MENU_LINKS = {
 };
 
 // Letterboxd data — real posters via TMDB image CDN
-const LB_USER = 'alkeshjames';
+const LB_USER = 'psfo';
 const LB_FILMS = [
   { title: 'Project Hail Mary', dir: 'Lord & Miller', year: '2026', rating: '★★★★★', color: '#1a3a5c', poster: 'https://image.tmdb.org/t/p/w342/yihdXomYb5kTeSivtFndMy5iDmf.jpg' },
   { title: 'One Battle After Another', dir: 'Paul Thomas Anderson', year: '2025', rating: '★★★★½', color: '#2a1a0a', poster: 'https://image.tmdb.org/t/p/w342/lbBWwxBht4JFP5PsuJ5onpMqugW.jpg' },
