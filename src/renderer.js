@@ -7,9 +7,27 @@ import { THEME, AMBER, AMBER_DIM, AMBER_GLOW } from './theme.js';
 import { THEMES, BG, BEZEL, MENU, CLICKABLE, BOOT_DUR } from './constants.js';
 import { roundRect, glowText, typeReveal, drawSubLink, pgGlow, pgGlowOff } from './utils.js';
 
+// ── Social icon SVG cache (recoloured per theme) ──────────────────────────────
+const _svgCache = {};
+const _svgDefs = {
+  instagram: `<svg fill="COLOR" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g><path d="M22.3,8.4c-0.8,0-1.4,0.6-1.4,1.4c0,0.8,0.6,1.4,1.4,1.4c0.8,0,1.4-0.6,1.4-1.4C23.7,9,23.1,8.4,22.3,8.4z"/><path d="M16,10.2c-3.3,0-5.9,2.7-5.9,5.9s2.7,5.9,5.9,5.9s5.9-2.7,5.9-5.9S19.3,10.2,16,10.2z M16,19.9c-2.1,0-3.8-1.7-3.8-3.8c0-2.1,1.7-3.8,3.8-3.8c2.1,0,3.8,1.7,3.8,3.8C19.8,18.2,18.1,19.9,16,19.9z"/><path d="M20.8,4h-9.5C7.2,4,4,7.2,4,11.2v9.5c0,4,3.2,7.2,7.2,7.2h9.5c4,0,7.2-3.2,7.2-7.2v-9.5C28,7.2,24.8,4,20.8,4z M25.7,20.8c0,2.7-2.2,5-5,5h-9.5c-2.7,0-5-2.2-5-5v-9.5c0-2.7,2.2-5,5-5h9.5c2.7,0,5,2.2,5,5V20.8z"/></g></svg>`,
+  discord:   `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18.8944 4.34399C17.5184 3.71467 16.057 3.256 14.5317 3C14.3397 3.33067 14.1263 3.77866 13.977 4.13067C12.3546 3.89599 10.7439 3.89599 9.14394 4.13067C8.9946 3.77866 8.77059 3.33067 8.58925 3C7.05328 3.256 5.59194 3.71467 4.22555 4.34399C1.46289 8.41865 0.716219 12.3973 1.08955 16.3226C2.92421 17.6559 4.6949 18.4666 6.43463 19C6.86129 18.424 7.2453 17.8053 7.57597 17.1546C6.94663 16.92 6.3493 16.632 5.7733 16.2906C5.92263 16.184 6.07197 16.0667 6.21064 15.9493C9.68796 17.5387 13.4544 17.5387 16.889 15.9493C17.0383 16.0667 17.177 16.184 17.3263 16.2906C16.7503 16.632 16.153 16.92 15.5237 17.1546C15.8543 17.8053 16.2384 18.424 16.665 19C18.4037 18.4666 20.185 17.6559 22.0101 16.3226C22.4687 11.7787 21.2837 7.83202 18.8944 4.34399ZM8.05596 13.9013C7.01061 13.9013 6.15728 12.952 6.15728 11.7893C6.15728 10.6267 6.98928 9.67731 8.05596 9.67731C9.11194 9.67731 9.97591 10.6267 9.95457 11.7893C9.95457 12.952 9.11194 13.9013 8.05596 13.9013ZM15.065 13.9013C14.0197 13.9013 13.1653 12.952 13.1653 11.7893C13.1653 10.6267 13.9983 9.67731 15.065 9.67731C16.121 9.67731 16.985 10.6267 16.9637 11.7893C16.9637 12.952 16.1317 13.9013 15.065 13.9013Z" fill="COLOR"/></svg>`,
+  telegram:  `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12ZM12.3583 9.38244C11.3857 9.787 9.44177 10.6243 6.52657 11.8944C6.05318 12.0827 5.8052 12.2669 5.78263 12.4469C5.74448 12.7513 6.12559 12.8711 6.64455 13.0343C6.71515 13.0565 6.78829 13.0795 6.86327 13.1038C7.37385 13.2698 8.06068 13.464 8.41773 13.4717C8.74161 13.4787 9.1031 13.3452 9.50219 13.0711C12.226 11.2325 13.632 10.3032 13.7202 10.2831C13.7825 10.269 13.8688 10.2512 13.9273 10.3032C13.9858 10.3552 13.98 10.4536 13.9738 10.48C13.9361 10.641 12.4401 12.0318 11.6659 12.7515C11.4246 12.9759 11.2534 13.135 11.2184 13.1714C11.14 13.2528 11.0601 13.3298 10.9833 13.4038C10.509 13.8611 10.1532 14.204 11.003 14.764C11.4114 15.0331 11.7381 15.2556 12.0641 15.4776C12.4201 15.7201 12.7752 15.9619 13.2347 16.2631C13.3517 16.3398 13.4635 16.4195 13.5724 16.4971C13.9867 16.7925 14.3589 17.0579 14.8188 17.0155C15.086 16.991 15.362 16.7397 15.5022 15.9903C15.8335 14.2193 16.4847 10.382 16.6352 8.80081C16.6484 8.66228 16.6318 8.48498 16.6185 8.40715C16.6051 8.32932 16.5773 8.21842 16.4761 8.13633C16.3563 8.03911 16.1714 8.01861 16.0886 8.02C15.7125 8.0267 15.1354 8.22735 12.3583 9.38244Z" fill="COLOR"/></svg>`,
+};
+function _getSocialImg(id, hex) {
+  const key = `${id}:${hex}`;
+  if (_svgCache[key]) return _svgCache[key];
+  const img  = new Image();
+  const blob = new Blob([_svgDefs[id].replace('COLOR', hex)], { type: 'image/svg+xml' });
+  const url  = URL.createObjectURL(blob);
+  img.onload = () => URL.revokeObjectURL(url);
+  img.src = url;
+  _svgCache[key] = img;
+  return img;
+}
+
 import { drawPageLibrary }     from './pages/library.js';
 import { drawPageLetterboxd }  from './pages/letterboxd.js';
-import { drawPageSocials, drawPageTwitterError } from './pages/socials.js';
 import { drawPageMusic }       from './pages/music.js';
 import { drawPageDiscord }     from './pages/discord.js';
 import { drawPageArcade }      from './pages/arcade.js';
@@ -305,31 +323,51 @@ function drawFooter(ctx, x, y, w, h, fs) {
     });
   }
 
-  ctx.font = `${fs}px VT323`; ctx.textBaseline = 'middle';
+  const bfs  = Math.round(fs * 0.82);
+  ctx.font = `${bfs}px VT323`; ctx.textBaseline = 'middle';
 
-  const memX   = x + w * 0.45;
-  const memW   = w * 0.52;
   const pct    = Math.floor(state.battery.level * 100);
   const stat   = state.battery.charging ? 'AC POWERED' : 'BATTERY PWR';
-  ctx.fillText(`[ SYS POWER: ${pct}% ─ ${stat} ]`, memX, y + h * 0.1);
-
-  const mBarW = memW;
-  const mBarH = h * 0.3;
-  const mY    = y + h * 0.42;
+  const barLabel = `[ SYS POWER: ${pct}% ─ ${stat} ]`;
+  const mBarW  = ctx.measureText(barLabel).width;
+  const memX   = x + w - mBarW - w * 0.02;
+  ctx.fillStyle = AMBER;
+  ctx.fillText(barLabel, memX, y + h * 0.12);
+  const mBarH = h * 0.22;
+  const mY    = y + h * 0.46;
   ctx.strokeStyle = AMBER; ctx.lineWidth = 1;
   ctx.strokeRect(memX, mY, mBarW, mBarH);
   ctx.fillStyle = `rgba(${THEME.r},${THEME.g},${THEME.b},0.6)`;
   ctx.fillRect(memX + 1, mY + 1, Math.max(0, mBarW * state.battery.level - 2), mBarH - 2);
 
+  ctx.font = `${Math.round(bfs * 0.85)}px VT323`;
   ctx.fillStyle = AMBER;
-  ctx.fillText('0%', memX, mY + mBarH + h * 0.12);
+  ctx.fillText('0%', memX, mY + mBarH + h * 0.14);
   ctx.textAlign = 'right';
-  ctx.fillText(`${pct}%`, memX + mBarW, mY + mBarH + h * 0.05);
-  if (pct < 100) {
-    ctx.fillStyle = AMBER_DIM;
-    ctx.fillText('100%', memX + mBarW, mY + mBarH + h * 0.22);
-  }
+  ctx.fillText(`${pct}%`, memX + mBarW, mY + mBarH + h * 0.14);
   ctx.textAlign = 'left';
+  ctx.font = `${bfs}px VT323`;
+
+  // Social icons — starting at ASCII left edge
+  const socials = ['instagram', 'discord', 'telegram'];
+  const igS     = Math.round(h * 0.70);
+  const igGap   = igS * 1.5;
+  const igBaseX = x + w * 0.27;
+  const igY     = y + (h - igS) / 2;
+  socials.forEach((id, i) => {
+    const ix  = igBaseX + i * igGap;
+    const hs  = state.subHoverState[id] || 0;
+    const img = _getSocialImg(id, THEME.hex);
+    if (img.complete && img.naturalWidth > 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.55 + hs * 0.45;
+      ctx.shadowColor = `rgba(${THEME.r},${THEME.g},${THEME.b},1)`;
+      ctx.shadowBlur  = 8 + hs * 16;
+      ctx.drawImage(img, ix, igY, igS, igS);
+      ctx.restore();
+    }
+    state.globalHitAreas.push({ x: ix - 4, y: igY - 4, w: igS + 8, h: igS + 8, id });
+  });
 }
 
 // ── Page router ───────────────────────────────────────────────────────────────
@@ -345,8 +383,6 @@ function drawPage(ctx, x, y, w, h, elapsed) {
   ctx.clip();
 
   if      (state.activePage === 'letterboxd')    drawPageLetterboxd(ctx, x, y, w, h, elapsed);
-  else if (state.activePage === 'socials')       drawPageSocials(ctx, x, y, w, h, elapsed);
-  else if (state.activePage === 'twitter-error') drawPageTwitterError(ctx, x, y, w, h, elapsed);
   else if (state.activePage === 'library')       drawPageLibrary(ctx, x, y, w, h, elapsed);
   else if (state.activePage === 'music')         drawPageMusic(ctx, x, y, w, h, elapsed);
   else if (state.activePage === 'discord')       drawPageDiscord(ctx, x, y, w, h, elapsed);

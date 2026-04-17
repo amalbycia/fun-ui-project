@@ -24,27 +24,23 @@ export const LASTFM_USER = 'keznotkez';
 export const LASTFM_POLL = 30_000;
 
 export const MENU = [
-  ['[♦]', '@portfolio'],
   ['[≡]', '@library'],
   ['[◉]', '@letterboxd'],
   ['[#]', '@discord'],
   ['[♫]', '@music'],
   ['[▩]', '@images'],
-  ['[⊕]', '@socials'],
   ['[§]', '@diary'],
   ['[►]', '@arcade'],
 ];
 
 export const MENU_LINKS = {
-  0: { type: 'external', url: 'https://alkeshjames.vercel.app' },
-  1: { type: 'page', page: 'library' },
-  2: { type: 'page', page: 'letterboxd' },
-  3: { type: 'page', page: 'discord' },
-  4: { type: 'page', page: 'music' },
+  0: { type: 'page', page: 'library' },
+  1: { type: 'page', page: 'letterboxd' },
+  2: { type: 'page', page: 'discord' },
+  3: { type: 'page', page: 'music' },
+  4: null,
   5: null,
-  6: { type: 'page', page: 'socials' },
-  7: null,
-  8: { type: 'page', page: 'arcade' },
+  6: { type: 'page', page: 'arcade' },
 };
 
-export const CLICKABLE = new Set([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+export const CLICKABLE = new Set([0, 1, 2, 3, 4, 5, 6]);

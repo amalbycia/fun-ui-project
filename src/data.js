@@ -12,13 +12,6 @@ export const LB_FILMS = [
   { title: 'The Brutalist',            dir: 'Brady Corbet',         year: '2024', rating: '★★★★',  color: '#2a2a1a', poster: 'https://image.tmdb.org/t/p/w342/vP7Yd6couiAaw9jgMd5cjMRj3hQ.jpg' },
 ];
 
-// ── Socials ───────────────────────────────────────────────────────────────────
-export const SOCIALS = [
-  { id: 'instagram', label: '@INSTAGRAM', handle: 'alkexh',      url: 'https://instagram.com/alkexh' },
-  { id: 'linkedin',  label: '@LINKEDIN',  handle: 'alkeshjames', url: 'https://linkedin.com/in/alkeshjames' },
-  { id: 'twitter',   label: '@TWITTER',   handle: '___',         url: null },
-];
-
 // ── Arcade ────────────────────────────────────────────────────────────────────
 export const ARCADE_GAMES = [
   {

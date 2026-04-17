@@ -75,6 +75,9 @@ export function closePage() {
 
 // ── Click dispatcher ─────────────────────────────────────────────────────────
 function handleGlobalClick(id) {
+  if (id === 'instagram') { window.open('https://instagram.com/alkexh', '_blank', 'noopener'); return; }
+  if (id === 'discord')   { window.open('https://discordapp.com/users/1426930274213822595', '_blank', 'noopener'); return; }
+  if (id === 'telegram')  { window.open('https://t.me/zetiva', '_blank', 'noopener'); return; }
   if (id === 'theme-toggle') {
     state.themeMenuOpen = !state.themeMenuOpen;
   } else if (id.startsWith('theme-select-')) {
@@ -101,9 +104,9 @@ function handleSubClick(id) {
     return;
   }
 
-  if (id === 'instagram')   { window.open('https://instagram.com/alkexh', '_blank'); return; }
-  if (id === 'linkedin')    { window.open('https://linkedin.com/in/alkeshjames', '_blank'); return; }
-  if (id === 'twitter')     { openPage('twitter-error'); return; }
+  if (id === 'instagram')    { window.open('https://instagram.com/alkexh', '_blank'); return; }
+  if (id === 'discord')      { window.open('https://discordapp.com/users/1426930274213822595', '_blank', 'noopener'); return; }
+  if (id === 'telegram')     { window.open('https://t.me/zetiva', '_blank', 'noopener'); return; }
   if (id === 'lb_link')     { window.open('https://letterboxd.com/psfo', '_blank'); return; }
   if (id === 'discord-link') { window.open('https://discord.com/users/1426930274213822595', '_blank', 'noopener'); return; }
   if (id === 'game-doom')   { state.pagePrev = 'arcade'; openPage('doom');  return; }
@@ -318,8 +321,7 @@ export async function boot() {
     const { x } = cssToCanvas(e.clientX, e.clientY);
     if (x < canvas.width * 0.30) {
       state.menuScrollY = Math.max(0, Math.min(state.menuScrollMax, state.menuScrollY + e.deltaY * 0.6));
-    } else if (state.activePage === 'letterboxd' || state.activePage === 'socials' ||
-               state.activePage === 'twitter-error' || state.activePage === 'music' ||
+    } else if (state.activePage === 'letterboxd' || state.activePage === 'music' ||
                state.activePage === 'discord' || state.activePage === 'arcade' ||
                state.activePage === 'library') {
       state.lbScrollY = Math.max(0, Math.min(state.lbScrollMax, state.lbScrollY + e.deltaY * 0.6));
@@ -347,7 +349,7 @@ export async function boot() {
       if (foundGlobal !== null) {
         if (!state.subHoverState[foundGlobal]) state.subHoverState[foundGlobal] = 0;
         gsap.to(state.subHoverState, { [foundGlobal]: 1, duration: 0.10, ease: 'power2.out', overwrite: 'auto' });
-        hoverSfx.cloneNode().play().catch(() => {});
+        if (!['instagram','discord','telegram'].includes(foundGlobal)) hoverSfx.cloneNode().play().catch(() => {});
       }
       state.globalHoverId = foundGlobal;
     }
